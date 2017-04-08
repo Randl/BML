@@ -1,9 +1,13 @@
-import random
 from enum import IntEnum
+from random import choice
 
-import numpy as np
 from PIL import Image
+from pylab import *
 
+num_of_colors = 2
+colormap = plt.get_cmap('inferno')
+colors = [colormap(k) for k in np.linspace(0.0, 0.8, num_of_colors)]
+sec_colors = [colormap(k + 0.1) for k in np.linspace(0.0, 0.8, num_of_colors)]
 
 class Cell(IntEnum):
     EMPTY = 0
@@ -73,13 +77,13 @@ class BML:
         return count
     
     def step_all(self):
-        next_state = np.zeros((self.height, self.width))
+        next_state = self.cells
         count = 0
         for i in range(self.height):
             for j in range(self.width):
                 if self.cells[(i, j)] == Cell.EMPTY:
                     if self.cells[self.left(i, j)] == Cell.RIGHT and self.cells[self.upper(i, j)] == Cell.DOWN:
-                        if random.choice((True, False)):
+                        if choice((True, False)):
                             next_state[(i, j)] = Cell.RIGHT
                             next_state[self.left(i, j)] = Cell.EMPTY
                         else:
@@ -106,8 +110,11 @@ class BML:
     def run(self, steps):
         for i in range(steps):
             self.make_step()
-    
-    def save(self):
+
+    def save(self, pixel_size=10):
+        """
+        Saves current state as png image
+        """
         visual = np.zeros((self.height, self.width, 3)).astype('uint8')
         for i in range(self.height):
             for j in range(self.width):
@@ -115,10 +122,37 @@ class BML:
                 visual[i, j, 1] = 0 if self.cells[(i, j)] != Cell.EMPTY else 255
                 visual[i, j, 2] = 0 if self.cells[(i, j)] == Cell.RIGHT else 255
         im = Image.fromarray(visual, mode='RGB')
+        im = im.resize((self.height * pixel_size, self.width * pixel_size))
         im.save("visual" + str(self.step) + ".png")
 
+    def plot_velocity(self):
+        """
+        Builds plot of velocity as a function of step number until now
+        """
+        params = {'axes.labelsize': 8, 'font.size': 8, 'legend.fontsize': 10, 'xtick.labelsize': 10,
+                  'ytick.labelsize': 10, 'text.usetex': False, 'figure.figsize': [4.5, 4.5]}
+        rcParams.update(params)
+        fig = figure()  # no frame
+        ax = fig.add_subplot(111)
+        ax.plot(self.velocity, linewidth=1, color=colors[0])
+        ax.set_ylim(0, 1)
+    
+        ax.get_xaxis().tick_bottom()
+        ax.get_yaxis().tick_left()
+    
+        ax.set_xlabel('Step')
+        ax.set_ylabel('Velocity')
+    
+        ax.grid(axis='y', color="0.9", linestyle='-', linewidth=1)
+        ax.set_axisbelow(True)
+    
+        plt.tight_layout()
+    
+        fig.savefig('velocity.png', dpi=600)
 
-automat = BML(16, 16, 0.5, 1)
+
+automat = BML(16, 16, 0.5, 2)
 automat.save()
-automat.run(1000)
+automat.run(100)
 automat.save()
+automat.plot_velocity()
