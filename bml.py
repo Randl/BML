@@ -1,3 +1,4 @@
+import time
 from enum import IntEnum
 from random import choice
 
@@ -108,8 +109,12 @@ class BML:
         return i, self.width - 1 if j == 0 else j - 1
     
     def run(self, steps):
+        start = time.perf_counter()
         for i in range(steps):
             self.make_step()
+        total_time = time.perf_counter() - start
+        print('{} steps for {}x{} map run in {}s. Average of {}s per step'.format(steps, self.height, self.width,
+                                                                                  total_time, total_time / steps))
 
     def save(self, pixel_size=10):
         """
@@ -151,8 +156,8 @@ class BML:
         fig.savefig('velocity.png', dpi=600)
 
 
-automat = BML(16, 16, 0.5, 2)
+automat = BML(128, 128, 0.5, 1)
 automat.save()
-automat.run(100)
+automat.run(1000)
 automat.save()
 automat.plot_velocity()
