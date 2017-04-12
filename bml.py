@@ -73,37 +73,36 @@ class BML:
         empty_indexes_both = np.transpose(np.where(np.logical_and(self.cells == Cell.EMPTY,
                                                                   np.logical_and(dd == Cell.DOWN - Cell.EMPTY,
                                                                                  dr == Cell.RIGHT - Cell.EMPTY))))
-    
+
         if empty_indexes_both.shape[0] > 0:
             np.random.shuffle(empty_indexes_both)
             right_nums = int(empty_indexes_both.shape[0] / 2)
-        
-            empty_indexes_right = tuple(np.transpose(np.r_[np.transpose(np.where(
-                np.logical_and(self.cells == Cell.EMPTY, np.logical_and(dr == Cell.RIGHT - Cell.EMPTY,
-                                                                        dd != Cell.DOWN - Cell.EMPTY)))),
-                                                           empty_indexes_both[
-                                                                                                          :right_nums]]))
-            empty_indexes_down = tuple(np.transpose(np.r_[np.transpose(np.where(np.logical_and(self.cells == Cell.EMPTY,
-                                                                                               np.logical_and(
-                                                                                                   dd == Cell.DOWN -
-                                                                                                   Cell.EMPTY,
-                                                                                                   dr != Cell.RIGHT -
-                                                                                                   Cell.EMPTY)))),
-                                                          empty_indexes_both[
-                                                                                                                                      right_nums:]]))
-    
+            # @formatter:off
+            empty_indexes_right = tuple(np.transpose(np.r_[
+                                                      np.transpose(np.where(
+                                                                   np.logical_and(self.cells == Cell.EMPTY,
+                                                                   np.logical_and(dr == Cell.RIGHT - Cell.EMPTY,
+                                                                                  dd != Cell.DOWN - Cell.EMPTY)))),
+                                                      empty_indexes_both[:right_nums]]))
+            empty_indexes_down = tuple(np.transpose(np.r_[
+                                                      np.transpose(np.where(
+                                                              np.logical_and(self.cells == Cell.EMPTY,
+                                                              np.logical_and(dd == Cell.DOWN - Cell.EMPTY,
+                                                                             dr != Cell.RIGHT - Cell.EMPTY)))),
+                                                      empty_indexes_both[right_nums:]]))
+            # @formatter:on
         else:
             empty_indexes_right = np.where(np.logical_and(self.cells == Cell.EMPTY, dr == Cell.RIGHT - Cell.EMPTY))
             empty_indexes_down = np.where(np.logical_and(self.cells == Cell.EMPTY, dd == Cell.DOWN - Cell.EMPTY))
-    
+
         right_indexes = self.left_set(empty_indexes_right)
         down_indexes = self.up_set(empty_indexes_down)
-    
+
         self.cells[right_indexes] = Cell.EMPTY
         self.cells[down_indexes] = Cell.EMPTY
         self.cells[empty_indexes_right] = Cell.RIGHT
         self.cells[empty_indexes_down] = Cell.DOWN
-    
+
         # if self.step % 100 == 1:
         #    self.save()
         return len(right_indexes[0]) + len(down_indexes[0])
