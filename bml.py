@@ -1,6 +1,5 @@
 import time
 from enum import IntEnum
-from random import choice
 
 from PIL import Image
 from pylab import *
@@ -35,6 +34,7 @@ class BML:
         # Access array elements using the indices to do cool stuff
         for i in inds[:num_of_cars]:
             self.cells[i] = Cell.RIGHT
+
         for i in inds[num_of_cars:2 * num_of_cars]:
             self.cells[i] = Cell.DOWN
         
@@ -68,30 +68,46 @@ class BML:
         return len(right_indexes[0])
     
     def step_all(self):
-        next_state = self.cells
-        count = 0
-        for i in range(self.height):
-            for j in range(self.width):
-                if self.cells[(i, j)] == Cell.EMPTY:
-                    if self.cells[self.left(i, j)] == Cell.RIGHT and self.cells[self.upper(i, j)] == Cell.DOWN:
-                        if choice((True, False)):
-                            next_state[(i, j)] = Cell.RIGHT
-                            next_state[self.left(i, j)] = Cell.EMPTY
-                        else:
-                            next_state[(i, j)] = Cell.DOWN
-                            next_state[self.upper(i, j)] = Cell.EMPTY
-                        count += 1
-                    elif self.cells[self.left(i, j)] == Cell.RIGHT:
-                        next_state[(i, j)] = Cell.RIGHT
-                        next_state[self.left(i, j)] = Cell.EMPTY
-                        count += 1
-                    elif self.cells[self.upper(i, j)] == Cell.DOWN:
-                        next_state[(i, j)] = Cell.DOWN
-                        next_state[self.upper(i, j)] = Cell.EMPTY
-                        count += 1
-        self.cells = next_state
-        return count
-
+        dr = np.c_[self.cells[:, -1], self.cells[:, :-1]] - self.cells
+        dd = np.r_[[self.cells[-1, :]], self.cells[:-1, :]] - self.cells
+        empty_indexes_both = np.transpose(np.where(np.logical_and(self.cells == Cell.EMPTY,
+                                                                  np.logical_and(dd == Cell.DOWN - Cell.EMPTY,
+                                                                                 dr == Cell.RIGHT - Cell.EMPTY))))
+    
+        if empty_indexes_both.shape[0] > 0:
+            np.random.shuffle(empty_indexes_both)
+            right_nums = int(empty_indexes_both.shape[0] / 2)
+        
+            empty_indexes_right = tuple(np.transpose(np.r_[np.transpose(np.where(
+                np.logical_and(self.cells == Cell.EMPTY, np.logical_and(dr == Cell.RIGHT - Cell.EMPTY,
+                                                                        dd != Cell.DOWN - Cell.EMPTY)))),
+                                                           empty_indexes_both[
+                                                                                                          :right_nums]]))
+            empty_indexes_down = tuple(np.transpose(np.r_[np.transpose(np.where(np.logical_and(self.cells == Cell.EMPTY,
+                                                                                               np.logical_and(
+                                                                                                   dd == Cell.DOWN -
+                                                                                                   Cell.EMPTY,
+                                                                                                   dr != Cell.RIGHT -
+                                                                                                   Cell.EMPTY)))),
+                                                          empty_indexes_both[
+                                                                                                                                      right_nums:]]))
+    
+        else:
+            empty_indexes_right = np.where(np.logical_and(self.cells == Cell.EMPTY, dr == Cell.RIGHT - Cell.EMPTY))
+            empty_indexes_down = np.where(np.logical_and(self.cells == Cell.EMPTY, dd == Cell.DOWN - Cell.EMPTY))
+    
+        right_indexes = self.left_set(empty_indexes_right)
+        down_indexes = self.up_set(empty_indexes_down)
+    
+        self.cells[right_indexes] = Cell.EMPTY
+        self.cells[down_indexes] = Cell.EMPTY
+        self.cells[empty_indexes_right] = Cell.RIGHT
+        self.cells[empty_indexes_down] = Cell.DOWN
+    
+        # if self.step % 100 == 1:
+        #    self.save()
+        return len(right_indexes[0]) + len(down_indexes[0])
+    
     def step_all_together(self):
         return -1
     
@@ -114,10 +130,16 @@ class BML:
         return ind[0], 0 if ind[1] == self.width - 1 else ind[1] + 1
 
     def down_set(self, inds):
-        return [tuple((x + 1) % self.height for x in inds[0]), inds[1]]
-
+        return tuple([[(x + 1) % self.height for x in inds[0]], inds[1]])
+    
     def right_set(self, inds):
-        return [inds[0], tuple((x + 1) % self.width for x in inds[1])]
+        return tuple([inds[0], [(x + 1) % self.width for x in inds[1]]])
+
+    def up_set(self, inds):
+        return tuple([[(x - 1) % self.height for x in inds[0]], inds[1]])
+
+    def left_set(self, inds):
+        return tuple([inds[0], [(x - 1) % self.width for x in inds[1]]])
     
     def run(self, steps):
         start = time.perf_counter()
@@ -134,9 +156,9 @@ class BML:
         visual = np.zeros((self.height, self.width, 3)).astype('uint8')
         for i in range(self.height):
             for j in range(self.width):
-                visual[i, j, 0] = 0 if self.cells[(i, j)] == Cell.DOWN else 255
+                visual[i, j, 0] = 0 if self.cells[(i, j)] == Cell.DOWN else 255  # down is blue
                 visual[i, j, 1] = 0 if self.cells[(i, j)] != Cell.EMPTY else 255
-                visual[i, j, 2] = 0 if self.cells[(i, j)] == Cell.RIGHT else 255
+                visual[i, j, 2] = 0 if self.cells[(i, j)] == Cell.RIGHT else 255  # right are red
         im = Image.fromarray(visual, mode='RGB')
         im = im.resize((self.height * pixel_size, self.width * pixel_size))
         im.save("visual" + str(self.step) + ".png")
@@ -166,9 +188,10 @@ class BML:
         plt.tight_layout()
 
         fig.savefig('velocity.png', dpi=600)
+        # print(self.velocity)
 
 
-automat = BML(521, 523, 0.2, 1)
+automat = BML(521, 523, 0.1, 2)
 automat.save()
 automat.run(3500)
 automat.save()
