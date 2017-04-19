@@ -113,6 +113,35 @@ class BML:
         return len(right_indexes[0]) + len(down_indexes[0])
     
     def step_all_together(self):
+        dr = np.c_[self.cells[:, -1], self.cells[:, :-1]] - self.cells
+        dd = np.r_[[self.cells[-1, :]], self.cells[:-1, :]] - self.cells
+    
+        down_cond = np.logical_or(dd == Cell.DOWN - Cell.EMPTY, dd == Cell.BOTH - Cell.EMPTY)
+        right_cond = np.logical_or(dr == Cell.RIGHT - Cell.EMPTY, dr == Cell.BOTH - Cell.EMPTY)
+        empty = self.cells == Cell.EMPTY
+        empty_indexes_both = np.where(np.logical_and(empty, np.logical_and(down_cond, right_cond)))
+    
+        empty_indexes_right = np.where(np.logical_and(empty, np.logical_and(right_cond, np.logical_not(down_cond))))
+        empty_indexes_down = np.where(np.logical_and(empty, np.logical_and(down_cond, np.logical_not(right_cond))))
+    
+        right_indexes = self.left_set(empty_indexes_right)
+        down_indexes = self.up_set(empty_indexes_down)
+    
+        self.cells[right_indexes] -= 1
+        self.cells[down_indexes] -= 2
+        self.cells[empty_indexes_right] = Cell.RIGHT
+        self.cells[empty_indexes_down] = Cell.DOWN
+    
+        if len(empty_indexes_both[0]) > 0:
+            both_right_indexes = self.left_set(empty_indexes_both)
+            both_down_indexes = self.up_set(empty_indexes_both)
+            self.cells[both_right_indexes] -= 1
+            self.cells[both_down_indexes] -= 2
+            self.cells[empty_indexes_both] = Cell.BOTH
+        # if self.step % 100 == 1:
+        #    self.save()
+        return len(right_indexes[0]) + len(down_indexes[0]) + len(empty_indexes_both[0]) * 2
+        
         return -1
     
     def upper(self, i, j):
@@ -152,19 +181,21 @@ class BML:
         total_time = time.perf_counter() - start
         print('{} steps for {}x{} map run in {}s. Average of {}s per step'.format(steps, self.height, self.width,
                                                                                   total_time, total_time / steps))
-    
-    def get_image(self, pixel_size=1):
+
+    def get_image(self, pixel_size=2):
         """
         Returns image
         """
         visual = np.zeros((self.height, self.width, 3)).astype('uint8')
         down_indexes = np.where(self.cells == Cell.DOWN)
         right_indexes = np.where(self.cells == Cell.RIGHT)
+        both_indexes = np.where(self.cells == Cell.BOTH)
         visual[:, :, :] = 255
         visual[:, :, 0][down_indexes] = 0  # down is blue
         
         visual[:, :, 1][down_indexes] = 0
         visual[:, :, 1][right_indexes] = 0
+        visual[:, :, 1][both_indexes] = 0  # both is magenta
         
         visual[:, :, 2][right_indexes] = 0  # right are red
         im = Image.fromarray(visual, mode='RGB')
@@ -177,11 +208,17 @@ class BML:
         Saves current state as png image
         """
         visual = np.zeros((self.height, self.width, 3)).astype('uint8')
-        for i in range(self.height):
-            for j in range(self.width):
-                visual[i, j, 0] = 0 if self.cells[(i, j)] == Cell.DOWN else 255  # down is blue
-                visual[i, j, 1] = 0 if self.cells[(i, j)] != Cell.EMPTY else 255
-                visual[i, j, 2] = 0 if self.cells[(i, j)] == Cell.RIGHT else 255  # right are red
+        down_indexes = np.where(self.cells == Cell.DOWN)
+        right_indexes = np.where(self.cells == Cell.RIGHT)
+        both_indexes = np.where(self.cells == Cell.BOTH)
+        visual[:, :, :] = 255
+        visual[:, :, 0][down_indexes] = 0  # down is blue
+
+        visual[:, :, 1][down_indexes] = 0
+        visual[:, :, 1][right_indexes] = 0
+        visual[:, :, 1][both_indexes] = 0  # both is magenta
+
+        visual[:, :, 2][right_indexes] = 0  # right are red
         im = Image.fromarray(visual, mode='RGB')
         im = im.resize((self.height * pixel_size, self.width * pixel_size))
         im.save("visual" + str(self.step) + ".png")
@@ -218,9 +255,9 @@ class BML:
         # print(self.velocity)
 
 
-automat = BML(256, 256, 0.36, 1)
+automat = BML(256, 256, 0.98, 3, 10)
 automat.save()
-automat.run(5000)
+automat.run(15000)
 automat.save()
 automat.save_animation()
 automat.plot_velocity()
