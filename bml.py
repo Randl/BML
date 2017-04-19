@@ -18,13 +18,14 @@ class Cell(IntEnum):
 
 
 class BML:
-    def __init__(self, width, height, p, model):
+    def __init__(self, width, height, p, model, animation_ratio=10):
         self.width = width
         self.height = height
         self.cells = np.zeros((height, width))
-        self.model = model
+        self.model = model  # multidimentional, probabilistic, klein bottle, chain
         self.step = 0
         self.velocity = []
+        self.animation_ration = animation_ratio
         
         num_of_cars = int(width * height * (p / 2))
         # Get a list of indices
@@ -39,6 +40,8 @@ class BML:
             self.cells[i] = Cell.DOWN
         
         self.total_number = 2 * num_of_cars
+
+        self.animation = [self.get_image()]
     
     def make_step(self):
         if self.model == 1:
@@ -48,8 +51,10 @@ class BML:
         elif self.model == 2:
             self.velocity.append(self.step_all() / self.total_number)
         elif self.model == 3:
-            self.step_all_together()  # TODO
+            self.velocity.append(self.step_all_together() / self.total_number)  # TODO
         self.step += 1
+        if self.step % self.animation_ration == 0:
+            self.animation.append(self.get_image())
     
     def step_down(self):
         d = np.diff(np.r_[self.cells, [self.cells[0, :]]], axis=0)
@@ -147,7 +152,26 @@ class BML:
         total_time = time.perf_counter() - start
         print('{} steps for {}x{} map run in {}s. Average of {}s per step'.format(steps, self.height, self.width,
                                                                                   total_time, total_time / steps))
-
+    
+    def get_image(self, pixel_size=1):
+        """
+        Returns image
+        """
+        visual = np.zeros((self.height, self.width, 3)).astype('uint8')
+        down_indexes = np.where(self.cells == Cell.DOWN)
+        right_indexes = np.where(self.cells == Cell.RIGHT)
+        visual[:, :, :] = 255
+        visual[:, :, 0][down_indexes] = 0  # down is blue
+        
+        visual[:, :, 1][down_indexes] = 0
+        visual[:, :, 1][right_indexes] = 0
+        
+        visual[:, :, 2][right_indexes] = 0  # right are red
+        im = Image.fromarray(visual, mode='RGB')
+        im = im.resize((self.height * pixel_size, self.width * pixel_size))
+        return im
+        
+        
     def save(self, pixel_size=10):
         """
         Saves current state as png image
@@ -161,7 +185,11 @@ class BML:
         im = Image.fromarray(visual, mode='RGB')
         im = im.resize((self.height * pixel_size, self.width * pixel_size))
         im.save("visual" + str(self.step) + ".png")
-
+    
+    def save_animation(self):
+        self.animation[0].save("progress.gif", append_images=self.animation[1:], save_all=True, optimize=True,
+                               duration=10)
+        
     def plot_velocity(self):
         """
         Builds plot of velocity as a function of step number until now
@@ -190,8 +218,9 @@ class BML:
         # print(self.velocity)
 
 
-automat = BML(521, 523, 0.1, 2)
+automat = BML(256, 256, 0.36, 1)
 automat.save()
-automat.run(3500)
+automat.run(5000)
 automat.save()
+automat.save_animation()
 automat.plot_velocity()
