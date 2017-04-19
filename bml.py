@@ -18,7 +18,7 @@ class Cell(IntEnum):
 
 
 class BML:
-    def __init__(self, width, height, p, model, animation_ratio=10):
+    def __init__(self, width, height, p, model, move_probability=1, animation_ratio=10):
         self.width = width
         self.height = height
         self.cells = np.zeros((height, width))
@@ -26,6 +26,7 @@ class BML:
         self.step = 0
         self.velocity = []
         self.animation_ration = animation_ratio
+        self.move_probability = move_probability
         
         num_of_cars = int(width * height * (p / 2))
         # Get a list of indices
@@ -51,13 +52,13 @@ class BML:
         elif self.model == 2:
             self.velocity.append(self.step_all() / self.total_number)
         elif self.model == 3:
-            self.velocity.append(self.step_all_together() / self.total_number)  # TODO
+            self.velocity.append(self.step_all_together() / self.total_number)
         self.step += 1
         if self.step % self.animation_ration == 0:
             self.animation.append(self.get_image())
     
     def step_down(self):
-        d = np.diff(np.r_[self.cells, [self.cells[0, :]]], axis=0)
+        d = np.diff(np.r_[self.cells, [self.cells[0, :]]], axis=0)  # TODO: transpose in some way and do one function
         down_indexes = np.where(np.logical_and(self.cells == Cell.DOWN, d == Cell.EMPTY - Cell.DOWN))
         empty_indexes = self.down_set(down_indexes)
         self.cells[down_indexes] = Cell.EMPTY
@@ -75,7 +76,10 @@ class BML:
     def step_all(self):
         dr = np.c_[self.cells[:, -1], self.cells[:, :-1]] - self.cells
         dd = np.r_[[self.cells[-1, :]], self.cells[:-1, :]] - self.cells
-        empty_indexes_both = np.transpose(np.where(np.logical_and(self.cells == Cell.EMPTY,
+
+        empty_cells = self.cells == Cell.EMPTY
+
+        empty_indexes_both = np.transpose(np.where(np.logical_and(empty_cells,
                                                                   np.logical_and(dd == Cell.DOWN - Cell.EMPTY,
                                                                                  dr == Cell.RIGHT - Cell.EMPTY))))
 
@@ -85,20 +89,20 @@ class BML:
             # @formatter:off
             empty_indexes_right = tuple(np.transpose(np.r_[
                                                       np.transpose(np.where(
-                                                                   np.logical_and(self.cells == Cell.EMPTY,
+                                                                   np.logical_and(empty_cells,
                                                                    np.logical_and(dr == Cell.RIGHT - Cell.EMPTY,
                                                                                   dd != Cell.DOWN - Cell.EMPTY)))),
                                                       empty_indexes_both[:right_nums]]))
             empty_indexes_down = tuple(np.transpose(np.r_[
                                                       np.transpose(np.where(
-                                                              np.logical_and(self.cells == Cell.EMPTY,
+                                                              np.logical_and(empty_cells,
                                                               np.logical_and(dd == Cell.DOWN - Cell.EMPTY,
                                                                              dr != Cell.RIGHT - Cell.EMPTY)))),
                                                       empty_indexes_both[right_nums:]]))
             # @formatter:on
         else:
-            empty_indexes_right = np.where(np.logical_and(self.cells == Cell.EMPTY, dr == Cell.RIGHT - Cell.EMPTY))
-            empty_indexes_down = np.where(np.logical_and(self.cells == Cell.EMPTY, dd == Cell.DOWN - Cell.EMPTY))
+            empty_indexes_right = np.where(np.logical_and(empty_cells, dr == Cell.RIGHT - Cell.EMPTY))
+            empty_indexes_down = np.where(np.logical_and(empty_cells, dd == Cell.DOWN - Cell.EMPTY))
 
         right_indexes = self.left_set(empty_indexes_right)
         down_indexes = self.up_set(empty_indexes_down)
@@ -118,11 +122,13 @@ class BML:
     
         down_cond = np.logical_or(dd == Cell.DOWN - Cell.EMPTY, dd == Cell.BOTH - Cell.EMPTY)
         right_cond = np.logical_or(dr == Cell.RIGHT - Cell.EMPTY, dr == Cell.BOTH - Cell.EMPTY)
-        empty = self.cells == Cell.EMPTY
-        empty_indexes_both = np.where(np.logical_and(empty, np.logical_and(down_cond, right_cond)))
-    
-        empty_indexes_right = np.where(np.logical_and(empty, np.logical_and(right_cond, np.logical_not(down_cond))))
-        empty_indexes_down = np.where(np.logical_and(empty, np.logical_and(down_cond, np.logical_not(right_cond))))
+        empty_cells = self.cells == Cell.EMPTY
+        empty_indexes_both = np.where(np.logical_and(empty_cells, np.logical_and(down_cond, right_cond)))
+
+        empty_indexes_right = np.where(
+            np.logical_and(empty_cells, np.logical_and(right_cond, np.logical_not(down_cond))))
+        empty_indexes_down = np.where(
+            np.logical_and(empty_cells, np.logical_and(down_cond, np.logical_not(right_cond))))
     
         right_indexes = self.left_set(empty_indexes_right)
         down_indexes = self.up_set(empty_indexes_down)
@@ -138,29 +144,10 @@ class BML:
             self.cells[both_right_indexes] -= 1
             self.cells[both_down_indexes] -= 2
             self.cells[empty_indexes_both] = Cell.BOTH
-        # if self.step % 100 == 1:
-        #    self.save()
+
         return len(right_indexes[0]) + len(down_indexes[0]) + len(empty_indexes_both[0]) * 2
         
-        return -1
-    
-    def upper(self, i, j):
-        return self.height - 1 if i == 0 else i - 1, j
-    
-    def left(self, i, j):
-        return i, self.width - 1 if j == 0 else j - 1
 
-    def upper_t(self, ind):
-        return self.height - 1 if ind[0] == 0 else ind[0] - 1, ind[1]
-
-    def left_t(self, ind):
-        return ind[0], self.width - 1 if ind[1] == 0 else ind[1] - 1
-
-    def down_t(self, ind):
-        return 0 if ind[0] == self.height - 1 else ind[0] + 1, ind[1]
-
-    def right_t(self, ind):
-        return ind[0], 0 if ind[1] == self.width - 1 else ind[1] + 1
 
     def down_set(self, inds):
         return tuple([[(x + 1) % self.height for x in inds[0]], inds[1]])
@@ -255,9 +242,9 @@ class BML:
         # print(self.velocity)
 
 
-automat = BML(256, 256, 0.98, 3, 10)
+automat = BML(256, 256, 0.8, 2, 1, 10)
 automat.save()
-automat.run(15000)
+automat.run(150)
 automat.save()
 automat.save_animation()
 automat.plot_velocity()
