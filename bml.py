@@ -60,6 +60,10 @@ class BML:
     def step_down(self):
         d = np.diff(np.r_[self.cells, [self.cells[0, :]]], axis=0)
         down_indexes = np.where(np.logical_and(self.cells == Cell.DOWN, d == Cell.EMPTY - Cell.DOWN))
+        if self.move_probability < 1:
+            tmp = np.transpose(down_indexes)
+            np.random.shuffle(tmp)
+            down_indexes = tuple(np.transpose(tmp[:int(self.move_probability * tmp.shape[0]), :]))
         empty_indexes = self.down_set(down_indexes)
         self.cells[down_indexes] = Cell.EMPTY
         self.cells[empty_indexes] = Cell.DOWN
@@ -242,9 +246,9 @@ class BML:
         # print(self.velocity)
 
 
-automat = BML(256, 256, 0.8, 2, 1, 10)
+automat = BML(width=256, height=256, p=0.2, model=1, move_probability=0.9, animation_ratio=10)
 automat.save()
-automat.run(150)
+automat.run(5000)
 automat.save()
 automat.save_animation()
 automat.plot_velocity()

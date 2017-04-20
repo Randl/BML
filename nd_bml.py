@@ -2,9 +2,10 @@ import functools
 import time
 from operator import mul
 
+from mpl_toolkits.mplot3d import Axes3D
 from pylab import *
 
-num_of_colors = 2
+num_of_colors = 3
 colormap = plt.get_cmap('inferno')
 colors = [colormap(k) for k in np.linspace(0.0, 0.8, num_of_colors)]
 sec_colors = [colormap(k + 0.1) for k in np.linspace(0.0, 0.8, num_of_colors)]
@@ -38,6 +39,7 @@ class nd_BML:
     def make_step(self):
         vel = self.step_nd()
         self.velocity.append(vel / self.total_number)
+        self.step += 1
     
     def step_nd(self):
         moved = 0
@@ -76,6 +78,22 @@ class nd_BML:
         for x in self.cells.shape:
             shape_str += str(x) + 'x'
         return shape_str[:-1]
+
+    def save(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlim(0, self.shape[0])
+        ax.set_ylim(0, self.shape[1])
+        ax.set_zlim(0, self.shape[2])
+        cl = ['r', 'g', 'b']
+        for n in range(self.dims):
+            c = np.where(self.cells == n + 1)
+            # print(c)
+            # print(len(c[0]))
+            ax.scatter(c[0], c[1], c[2], c=cl[n], marker=matplotlib.markers.MarkerStyle('s', 'none'))
+    
+        fig.savefig("visual3d_" + str(self.step) + ".png", dpi=600)
+        
     
     def plot_velocity(self):
         """
@@ -105,6 +123,8 @@ class nd_BML:
         # print(self.velocity)
 
 
-automat = nd_BML((32, 32, 32, 32), 0.215)
+automat = nd_BML((32, 32, 32), 0.1)
+automat.save()
 automat.run(1000)
+automat.save()
 automat.plot_velocity()
