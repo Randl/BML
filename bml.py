@@ -22,7 +22,7 @@ class BML:
         self.width = width
         self.height = height
         self.cells = np.zeros((height, width))
-        self.model = model  # multidimentional, probabilistic, klein bottle, chain
+        self.model = model  # probabilistic, klein bottle, chain
         self.step = 0
         self.velocity = []
         self.animation_ration = animation_ratio
@@ -58,7 +58,7 @@ class BML:
             self.animation.append(self.get_image())
     
     def step_down(self):
-        d = np.diff(np.r_[self.cells, [self.cells[0, :]]], axis=0)  # TODO: transpose in some way and do one function
+        d = np.diff(np.r_[self.cells, [self.cells[0, :]]], axis=0)
         down_indexes = np.where(np.logical_and(self.cells == Cell.DOWN, d == Cell.EMPTY - Cell.DOWN))
         empty_indexes = self.down_set(down_indexes)
         self.cells[down_indexes] = Cell.EMPTY
